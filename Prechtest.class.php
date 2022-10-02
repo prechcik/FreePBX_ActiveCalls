@@ -56,7 +56,6 @@ class Prechtest implements \BMO {
 		return $buttons;
 	}
 	public function showPage(){
-                include("classes/AstMan.php");
 		// $vars = array('helloworld' => _("Hello World"));
 		$vars = array("prech_var" => "siema");
                 
