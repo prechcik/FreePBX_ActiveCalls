@@ -1,8 +1,8 @@
 
 <div class="container">
     <div class="row">
-        <div class="col">
-            <h3>Active calls</h3>
+        <div class="col text-center">
+            <h2>Active calls</h2>
         </div>
     </div>
     <div class="row">

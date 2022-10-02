@@ -117,21 +117,24 @@ class Prechtest implements \BMO {
                                     ) {
                                     
                                     $channel = $rowdb[0];
-                                    $extdb = explode("@", $channel);
-                                    if (count($extdb) > 1) $ext = explode("/", $extdb[0])[1];
-                                    if (!isset($ext) || $ext != $rowdb[2]) {
-                                        $rowobj = new \stdClass();
-                                        $rowobj->caller_ext = $ext;
-                                        $rowobj->duration = isset($rowdb[9]) ? $row[9] : null;
-                                        $target = isset($rowdb[1]) ? $rowdb[1] : null;
-                                        $rowobj->target_number = isset($rowdb[2]) ? $rowdb[2] : null;
-                                        $rowobj->status = isset($rowdb[4]) ? $rowdb[4] : null;
-                                        $rowobj->application = isset($rowdb[5]) ? $rowdb[5] : null;
-                //                        print_r($rowobj);
-                                        if ($rowobj->caller_ext != null && $rowobj->caller_ext != $rowobj->target_number) {
-                                            array_push($calls, $rowobj);
-                                            $retHtml .= "<tr><td>$rowobj->caller_ext</td><td>$rowobj->target_number</td><td>$rowobj->duration</td><td>$rowobj->status</td><td>$rowobj->application</td></tr>";
-                                        }
+                                    $extdb = explode("/", $channel);
+                                    if (count($extdb) > 1) {
+                                        $ext = explode("-", $extdb[1])[0];
+                                    } else {
+                                        $ext = $rowdb[2];
+                                    }
+                                    $rowobj = new \stdClass();
+                                    $rowobj->caller_ext = $ext;
+                                    $rowobj->duration = isset($rowdb[8]) ? $rowdb[8] : null;
+                                    $target = isset($rowdb[1]) ? $rowdb[1] : null;
+                                    $rowobj->target_number = isset($rowdb[2]) ? $rowdb[2] : null;
+                                    $rowobj->status = isset($rowdb[4]) ? $rowdb[4] : null;
+                                    $rowobj->application = isset($rowdb[5]) ? $rowdb[5] : null;
+                                    if ($rowobj->target_number == 1) $rowobj->target_number = "Disconnect";
+            //                        print_r($rowobj);
+                                    if ($rowobj->caller_ext != null) {
+                                        array_push($calls, $rowobj);
+                                        $retHtml .= "<tr><td>$rowobj->caller_ext</td><td>$rowobj->target_number</td><td>$rowobj->duration</td><td>$rowobj->status</td><td>$rowobj->application</td></tr>";
                                     }
                                 }
                             }
