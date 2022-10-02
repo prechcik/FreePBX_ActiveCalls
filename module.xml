@@ -1,0 +1,15 @@
+
+<module>
+  <rawname>prechtest</rawname>
+  <name>Prechtest</name>
+  <version>14.0.2</version>
+  <publisher>Generated Module</publisher>
+  <license>GPLv3</license>
+  <changelog>*14.0.1* Initial release</changelog>
+  <category>Reports</category>
+  <description>Shows current active calls</description>
+  <menuitems>
+    <prechtest>Active Calls</prechtest>
+  </menuitems>
+  <supported>13.0</supported>
+</module>
