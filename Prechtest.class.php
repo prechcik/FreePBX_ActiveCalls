@@ -206,6 +206,8 @@ class Prechtest implements \BMO {
 			break;
                         case 'hangup':
                                 return true;
+                        case 'call':
+                                return true;
 			default:
 				return false;
 			break;
@@ -265,6 +267,14 @@ class Prechtest implements \BMO {
                         case 'hangup':
                             $callId = $_GET["call"];
                             $out = $this->cli_runcommand("channel request hangup $callId");
+                            return $out;
+                            break;
+                        case 'call':
+                            $src = $_GET["src"];
+                            $dsc = $_GET["dsc"];
+                            $cmd = "channel originate local/$src@from-internal extension $dsc@from-internal";
+                            //print_r($cmd);
+                            $out = $this->cli_runcommand($cmd);
                             return $out;
                             break;
 			default:
