@@ -15,6 +15,111 @@ class Prechtest implements \BMO {
 		$this->FreePBX = $freepbx;
 		$this->db = $freepbx->Database;
                 $this->AstMan = $freepbx->astman;
+                
+                // Variables to try. If the key is blank/unset, use the value instead.
+		$vars = array(
+			"CDRDBHOST" => "AMPDBHOST",
+			"CDRDBPORT" => "AMPDBPORT",
+			"CDRDBUSER" => "AMPDBUSER",
+			"CDRDBPASS" => "AMPDBPASS",
+			"CDRDBTYPE" => "AMPDBTYPE",
+			// This is removed if unset
+			"CDRDBSOCK" => "AMPDBSOCK",
+			// Note - no default, we check later.
+			"CDRDBNAME" => "CDRDBNAME",
+			"CDRDBTABLENAME" => "CDRDBTABLENAME",
+			"CDRUSEGMT" => "CDRUSEGMT",
+		);
+
+		$cdr = array();
+		foreach ($vars as $conf => $default) {
+			$tmp = \FreePBX::Config()->get($conf);
+			// Is our config blank for this setting?
+			if (!$tmp) {
+				// How about the default?
+				$defvalue = \FreePBX::Config()->get($default);
+				if ($defvalue) {
+					$cdr[$conf] = $defalue;
+				} else {
+					// Well that's blank. Is it part of FreePBX::$conf? (That's the parsed output of /etc/freepbx.conf)
+					if (empty(\FreePBX::$conf[$default])) {
+						// No. Set it to blank.
+						$cdr[$conf] = "";
+					} else {
+						$cdr[$conf] = \FreePBX::$conf[$default];
+					}
+				}
+			} else {
+				// We have a setting
+				$cdr[$conf] = $tmp;
+			}
+		}
+
+		// If CDRDBNAME is blank, set it to asteriskcdrdb
+		if (!$cdr['CDRDBNAME']) {
+			$dsnarray = array("dbname" => "asteriskcdrdb");
+		} else {
+			$dsnarray = array("dbname" => $cdr['CDRDBNAME']);
+        }
+
+		// If we don't have a type (bogus install, possibly?), assume mysql
+		if (!$cdr['CDRDBTYPE']) {
+			$engine = "mysql";
+		} else {
+			// The db 'type' name can be wrong. Remap it to the correct one if it is
+			if ($cdr['CDRDBTYPE'] == "postgres") {
+				$engine = "pgsql";
+			} else {
+				$engine = $cdr['CDRDBTYPE'];
+			}
+		}
+
+		// If we have a socket, we don't want host and port.
+		if ($cdr['CDRDBSOCK']) {
+			$dsnarray['unix_socket'] = $cdr['CDRDBSOCK'];
+		} else {
+			$dsnarray['host'] = $cdr['CDRDBHOST'];
+			// Do we have a port?
+			if ($cdr['CDRDBPORT']) {
+				$dsnarray['port'] = $cdr['CDRDBPORT'];
+			}
+		}
+
+		// If there's no cdrdbtablename, set it to cdr
+		if (!$cdr['CDRDBTABLENAME']) {
+			$this->db_table = "cdr";
+		} else {
+			$this->db_table = $cdr['CDRDBTABLENAME'];
+		}
+
+		// If this is sqlite, ignore everything we've just done.
+		if (strpos($engine, "sqlite") === 0) {
+			// This is our raw parsed variables from /etc/freepbx.conf
+			$ampconf = \FreePBX::$amp_conf;
+			if (isset($amp_conf['cdrdatasource'])) {
+				$dsn = "$engine:".$amp_conf['cdrdatasource'];
+			} elseif (!empty($amp_conf['datasource'])) {
+				$dsn = "$engine:".$amp_conf['datasource'];
+			} else {
+				throw new \Exception("Datasource set to sqlite, but no cdrdatasource or datasource provided");
+			}
+			$user = "";
+			$pass = "";
+		} else {
+			// Not SQLite.
+			$user = $cdr["CDRDBUSER"];
+			$pass = $cdr["CDRDBPASS"];
+
+			// Note - http_build_query() is a simple shortcut to change a key=>value array
+			// to a string.
+			$dsn = "$engine:".http_build_query($dsnarray, '', ';');
+		}
+		// Now try to get a DB handle using our DSN
+		try {
+			$this->cdrdb = new \Database($dsn, $user, $pass);
+		} catch(\Exception $e) {
+			die("Unable to connect to CDR Database using dsn '$dsn' with user '$user' and password '$pass' - ".$e->getMessage());
+		}
 	}
 	//Install method. use this or install.php using both may cause weird behavior
 	public function install() {}
@@ -57,9 +162,23 @@ class Prechtest implements \BMO {
 	}
 	public function showPage(){
 		// $vars = array('helloworld' => _("Hello World"));
-		$vars = array("prech_var" => "siema");
-                
-                //print_r(json_encode($calls));
+		
+                $callLogHtml = "";
+                $q = "SELECT * FROM cdr ORDER BY calldate DESC LIMIT 100";
+                $r = $this->cdrdb->prepare($q);
+                $r->execute(array("query" => "%".$q."%"));
+                $rows = $r->fetchAll();
+                foreach($rows as $row) {
+                    $callLogHtml .= "<tr>
+                        <td>".$row["calldate"]."</td>
+                        <td>".$row["src"]."</td>
+                        <td>".$row["dst"]."</td>
+                        <td>".gmdate("H:i:s", $row["duration"])."</td>
+                        <td>".$row["cnum"]."</td>
+                        <td>".$row["lastapp"]."</td>
+                        </tr>";
+                }
+                $vars = array("prech_var" => $callLogHtml);
                 
                 return load_view(__DIR__.'/views/main.php',$vars);
 	}
@@ -93,7 +212,7 @@ class Prechtest implements \BMO {
 	public function ajaxHandler(){
 		switch ($_REQUEST['command']) {
 			case 'getJSON':
-                            $out = $this->cli_runcommand("core show channels verbose");
+                            $out = $this->cli_runcommand("core show channels concise");
                             while(strpos($out, "  ") != false) {
                                 $out = str_replace("  ", " ", $out);
                             }
@@ -101,46 +220,45 @@ class Prechtest implements \BMO {
                             $out = str_replace("\n", "<br />", $out);
                             $arr = explode("<br />", $out);
                             $calls = array();
-                            $retHtml = "";
-                            //print_r($arr);
-                            foreach($arr as $row) {
-                                $rowdb = explode(" ", $row);
-                                if (
-                                        count($rowdb) > 6 && 
-                                        $row != $arr[0] && 
-                                        count($arr) > 4 &&
-                                        strpos($row, "Channel") === false &&
-                                        strpos($row, "active channels") === false &&
-                                        strpos($row, "active calls") === false &&
-                                        strpos($row, "calls processed") === false
-                                    ) {
-                                    
-                                    $channel = $rowdb[0];
-                                    $extdb = explode("/", $channel);
-                                    if (count($extdb) > 1) {
-                                        $ext = explode("-", $extdb[1])[0];
-                                    } else {
-                                        $ext = $rowdb[2];
-                                    }
+                            if (count($arr) > 0) {
+                                $returnobj = new \stdClass();
+                                $returnobj->status = true;
+                                $returnobj->message = "";
+                                foreach($arr as $row) {
+                                    $rowdb = explode("!", $row);
+                                    //print_r($rowdb);
                                     $rowobj = new \stdClass();
-                                    $rowobj->caller_ext = $ext;
-                                    $rowobj->duration = isset($rowdb[8]) ? $rowdb[8] : null;
-                                    $target = isset($rowdb[1]) ? $rowdb[1] : null;
-                                    $rowobj->target_number = isset($rowdb[2]) ? $rowdb[2] : null;
-                                    $rowobj->status = isset($rowdb[4]) ? $rowdb[4] : null;
-                                    $rowobj->application = isset($rowdb[5]) ? $rowdb[5] : null;
-                                    if ($rowobj->target_number == 1) $rowobj->target_number = "Disconnect";
-            //                        print_r($rowobj);
-                                    if ($rowobj->caller_ext != null) {
-                                        array_push($calls, $rowobj);
-                                        $retHtml .= "<tr><td>$rowobj->caller_ext</td><td>$rowobj->target_number</td><td>$rowobj->duration</td><td>$rowobj->status</td><td>$rowobj->application</td></tr>";
+                                    if (count($rowdb) > 10) {
+                                        // Parse Channel into separate values
+                                        $channelstr = $rowdb[0];
+                                        $channel_left = explode("/", $channelstr);
+                                        $channel_right = count($channel_left) > 0 ? explode("-", $channel_left[1]) : null;
+                                        $rowobj->caller_ext = count($channel_right) > 0 ? $channel_right[0] : $rowdb[0];
+
+                                        $rowobj->target_number = $rowdb[7];
+                                        $rowobj->duration = gmdate("H:i:s", $rowdb[11]);
+                                        $rowobj->application = $rowdb[5];
+                                        $rowobj->status = $rowdb[4];
+                                        $rowobj->CID = $rowdb[7];
+                                        $returnobj->message .= "<tr>
+                                            <td>$rowobj->caller_ext</td>
+                                            <td>$rowobj->target_number</td>
+                                            <td>$rowobj->duration</td>
+                                            <td>$rowobj->status</td>
+                                            <td>$rowobj->CID</td>
+                                            <td>$rowobj->application</td>
+                                            <td><a class='btn btn-danger' href='#'>HangUp</a></td>
+                                            </tr>";
                                     }
                                 }
+                                
+                                return $returnobj;
+                            } else {
+                                $returnobj = new \stdClass();
+                                $returnobj->status = true;
+                                $returnobj->message = "";
+                                return $returnobj;
                             }
-                            $returnobj = new \stdClass();
-                            $returnobj->status = true;
-                            $returnobj->message = $retHtml;
-                            return $returnobj;
 			break;
 
 			default:
