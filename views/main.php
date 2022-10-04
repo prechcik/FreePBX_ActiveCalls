@@ -30,12 +30,12 @@
                             </table>
                         </div>
                     </div>
-                    <div class="row">
+                    <div class="row" style="margin-top: 3em;">
                         <div class="col text-center">
                             <h2>Simulate a call</h2>
                         </div>
                     </div>
-                    <div class="row">
+                    <div class="row text-center" style="margin-top: 1em;">
                         <div class="col">
                             <form action="#" method="POST" id="call_form" class="form-inline" onsubmit="return false;">
                                 <div class="row text-center">
@@ -81,6 +81,32 @@
 <script>
 $(document).ready(function() {
     var loop = setInterval(refreshCalls, 500);
+    
+    $('#history').DataTable({
+        paging: true,
+        lengthChange: true,
+        searching: true,
+        ordering: true,
+        info: true,
+        autoWidth: false,
+        responsive: true,
+        language: {
+            lengthMenu: 'Wyświetl _MENU_ wyników na stronę',
+            zeroRecords: 'Brak wyników!',
+            info: 'Strona _PAGE_ z _PAGES_',
+            infoEmpty: 'Brak wyników!',
+            infoFiltered: '(wyfiltrowane z _MAX_ łącznych wyników)',
+            search: 'Szukaj',
+            paginate: {
+                first: 'Pierwsza',
+                last: 'Ostatnia',
+                next: 'Następna',
+                previous: 'Poprzednia'
+            },
+        },
+        order: [[0, 'desc']],
+        iDisplayLength: 10
+    });
 });
 
 function refreshCalls() {
