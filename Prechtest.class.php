@@ -204,6 +204,8 @@ class Prechtest implements \BMO {
 			case 'getJSON':
 				return true;
 			break;
+                        case 'hangup':
+                                return true;
 			default:
 				return false;
 			break;
@@ -234,8 +236,8 @@ class Prechtest implements \BMO {
                                         $channel_left = explode("/", $channelstr);
                                         $channel_right = count($channel_left) > 0 ? explode("-", $channel_left[1]) : null;
                                         $rowobj->caller_ext = count($channel_right) > 0 ? $channel_right[0] : $rowdb[0];
-
-                                        $rowobj->target_number = $rowdb[7];
+                                        
+                                        $rowobj->target_number = $rowdb[2];
                                         $rowobj->duration = gmdate("H:i:s", $rowdb[11]);
                                         $rowobj->application = $rowdb[5];
                                         $rowobj->status = $rowdb[4];
@@ -247,7 +249,7 @@ class Prechtest implements \BMO {
                                             <td>$rowobj->status</td>
                                             <td>$rowobj->CID</td>
                                             <td>$rowobj->application</td>
-                                            <td><a class='btn btn-danger' href='#'>HangUp</a></td>
+                                            <td><a class='btn btn-danger' href='#' onclick='hangupCall(\"$channelstr\");'>HangUp</a></td>
                                             </tr>";
                                     }
                                 }
@@ -260,7 +262,11 @@ class Prechtest implements \BMO {
                                 return $returnobj;
                             }
 			break;
-
+                        case 'hangup':
+                            $callId = $_GET["call"];
+                            $out = $this->cli_runcommand("channel request hangup $callId");
+                            return $out;
+                            break;
 			default:
 				return false;
 			break;

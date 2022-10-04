@@ -2,10 +2,10 @@
 <module>
   <rawname>prechtest</rawname>
   <name>Prechtest</name>
-  <version>14.0.2</version>
+  <version>14.0.3</version>
   <publisher>Generated Module</publisher>
   <license>GPLv3</license>
-  <changelog>*14.0.1* Initial release</changelog>
+  <changelog>*14.0.1* Initial release, *14.0.2* Small update, *14.0.3* Added call history</changelog>
   <category>Reports</category>
   <description>Shows current active calls</description>
   <menuitems>

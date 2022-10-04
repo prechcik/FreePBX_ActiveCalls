@@ -49,14 +49,19 @@
 
 <script>
     $(document).ready(function() {
-        var loop = setInterval(function() {
-            $.get("ajax.php?module=prechtest&command=getJSON", function(data, status) {
-                //console.log(data.message.message); 
-                $('#prech_table').html(data.message.message);
-             });
-        }, 500);
-//                        setTimeout(function() {
-//                            window.location.reload();
-//                        }, 1000);
+        var loop = setInterval(refreshCalls, 500);
     });
+    
+    function refreshCalls() {
+        $.get("ajax.php?module=prechtest&command=getJSON", function(data, status) {
+            console.log(data.message.message); 
+            $('#prech_table').html(data.message.message);
+        });
+    }
+    
+    function hangupCall(callId) {
+        $.get("ajax.php?module=prechtest&command=hangup&call=" + callId, function(data, status) {
+                console.log(data.message); 
+        });
+    }
 </script>
